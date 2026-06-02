@@ -1,16 +1,26 @@
 [
   {
-    "device_id": "ESP32-LAB-A01",
-    "metric": "temperature",
-    "value": 31.5,
-    "unit": "celsius",
-    "timestamp": "2026-05-13T08:30:00+07:00"
+    "deviceId": "IOT-DEV-001",
+    "zoneId": "ZONE-A1",
+    "measurement": {
+      "sensorType": "TEMPERATURE",
+      "value": 31.5,
+      "unit": "CELSIUS"
+    },
+    "timestamp": "2026-05-19T02:59:58Z",
+    "metadata": {}
   },
   {
-    "device_id": "ESP32-LAB-A02",
-    "metric": "humidity",
-    "value": 72,
-    "unit": "percent",
-    "timestamp": "2026-05-13T08:31:00+07:00"
+    "deviceId": "IOT-DEV-002",
+    "zoneId": "ZONE-A0",
+    "measurement": {
+      "sensorType": "MOTION",
+      "detected": true,
+      "unit": "BOOLEAN"
+    },
+    "timestamp": "2026-05-19T03:00:10Z",
+    "metadata": {
+      "firmwareVersion": "1.4.2"
+    }
   }
 ]

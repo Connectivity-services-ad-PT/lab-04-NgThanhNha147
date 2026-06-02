@@ -1,35 +1,26 @@
-# RUN_LOCAL.md – Hướng dẫn chạy Lab 04
+# RUN_LOCAL.md - Run Lab 04
 
-Tài liệu này giúp người khác clone repo sạch và chạy lại service trong Docker.
+This lab packages the Lab 03 IoT Ingestion contract as a real Docker container.
 
----
-
-## 1. Clone repo
-
-```bash
-git clone <repo-url>
-cd FIT4110_lab04_docker_packaging
-```
-
----
-
-## 2. Cài dependencies cho Newman/Prism/Spectral
+## 1. Install test tools
 
 ```bash
 npm install
 ```
 
----
-
-## 3. Build Docker image
+## 2. Build the image
 
 ```bash
 docker build -t fit4110/iot-ingestion:lab04 .
 ```
 
----
+Optional submission tag:
 
-## 4. Run container
+```bash
+docker tag fit4110/iot-ingestion:lab04 fit4110/iot-ingestion:v0.1.0-team-iot
+```
+
+## 3. Run the container
 
 ```bash
 docker run --rm \
@@ -39,54 +30,45 @@ docker run --rm \
   fit4110/iot-ingestion:lab04
 ```
 
-Mở terminal khác, kiểm tra:
+## 4. Check health
 
 ```bash
 curl http://localhost:8000/health
 ```
 
-Kết quả mong đợi:
+Expected shape:
 
 ```json
 {
   "status": "ok",
   "service": "iot-ingestion",
-  "version": "0.4.0"
+  "time": "2026-06-02T03:10:57Z"
 }
 ```
 
----
-
-## 5. Chạy Newman test trên container
+## 5. Run Newman against the container
 
 ```bash
 npm run test:local
 ```
 
-Report sinh tại:
+Reports are generated at:
 
 ```text
 reports/newman-lab04-local.xml
 reports/newman-lab04-local.html
 ```
 
----
+The collection verifies the Lab 03 IoT endpoints:
 
-## 6. Dừng container
+- `GET /health`
+- `POST /events/sensor`
+- `POST /telemetry`
+- `GET /telemetry/{eventId}`
+- `GET /devices/{deviceId}`
 
-Nếu không dùng `--rm` hoặc container còn chạy:
+Stop the container when done:
 
 ```bash
 docker stop fit4110-iot-lab04
-```
-
----
-
-## 7. Lệnh nhanh
-
-```bash
-make build
-make run
-make test-docker
-make stop
 ```

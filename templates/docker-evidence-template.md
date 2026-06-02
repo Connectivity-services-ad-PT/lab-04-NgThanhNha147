@@ -1,4 +1,4 @@
-# Docker Evidence – Lab 04
+# Docker Evidence Template - Lab 04
 
 ## Team
 
@@ -6,7 +6,7 @@
 - Service:
 - Image tag:
 
-## 1. Build evidence
+## 1. Build Evidence
 
 Command:
 
@@ -14,9 +14,9 @@ Command:
 docker build -t <image-name>:<tag> .
 ```
 
-Paste log or screenshot here.
+Paste build log or screenshot here.
 
-## 2. Run evidence
+## 2. Run Evidence
 
 Command:
 
@@ -24,9 +24,9 @@ Command:
 docker run --rm -p 8000:8000 --env-file .env.example <image-name>:<tag>
 ```
 
-Paste log or screenshot here.
+Paste run log or screenshot here.
 
-## 3. Healthcheck evidence
+## 3. Health Evidence
 
 Command:
 
@@ -34,15 +34,17 @@ Command:
 curl http://localhost:8000/health
 ```
 
-Result:
+Expected result shape:
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "service": "iot-ingestion",
+  "time": "2026-06-02T03:12:29Z"
 }
 ```
 
-## 4. Newman evidence
+## 4. Newman Evidence
 
 Command:
 
@@ -50,7 +52,7 @@ Command:
 npm run test:local
 ```
 
-Report path:
+Report paths:
 
 ```text
 reports/newman-lab04-local.html

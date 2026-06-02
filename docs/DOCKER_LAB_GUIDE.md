@@ -1,96 +1,55 @@
-# DOCKER_LAB_GUIDE.md – Hướng dẫn lab Docker
+# Docker Lab Guide
 
-## 1. Vì sao cần Docker?
+## Why Docker Is Needed
 
-Vấn đề thường gặp:
+Docker packages source code, dependencies, runtime configuration, and the startup command into one image. That makes the service easier to rerun on another machine or in CI.
 
-```text
-Máy em chạy được, máy bạn không chạy được.
-```
-
-Docker giải quyết bằng cách đóng gói:
+## Image And Container
 
 ```text
-source code + dependency + runtime config + command chạy app
+Image     = immutable package
+Container = running process created from an image
 ```
 
-thành một image có thể chạy lại ở máy khác.
-
----
-
-## 2. Image và container
-
-```text
-Image     = bản đóng gói bất biến
-Container = tiến trình đang chạy từ image
-```
-
-Ví dụ:
+Example:
 
 ```bash
 docker build -t fit4110/iot-ingestion:lab04 .
-docker run -p 8000:8000 fit4110/iot-ingestion:lab04
+docker run -p 8000:8000 --env-file .env.example fit4110/iot-ingestion:lab04
 ```
 
----
+## Dockerfile Used In This Lab
 
-## 3. Dockerfile tối thiểu
-
-```Dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY src/ ./src/
-EXPOSE 8000
-CMD ["uvicorn", "iot_app.main:app", "--app-dir", "src", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-Dockerfile trong repo này tốt hơn bản tối thiểu vì có:
+The submitted Dockerfile is stronger than a minimal example because it includes:
 
 - multi-stage build
-- non-root user
-- healthcheck
-- environment variables
-- `.dockerignore`
+- non-root runtime user `appuser`
+- runtime configuration through environment variables
+- `HEALTHCHECK` calling `/health`
+- `.dockerignore` to reduce build context
 
----
+## Healthcheck
 
-## 4. Healthcheck
-
-Container không chỉ cần "đang chạy", mà cần "service bên trong sẵn sàng".
+The container must prove that the FastAPI service inside it is ready, not only that the process exists.
 
 ```Dockerfile
-HEALTHCHECK CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()" || exit 1
+HEALTHCHECK CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()" || exit 1
 ```
 
-Kiểm tra:
+Check it manually:
 
 ```bash
 docker ps
 docker inspect fit4110-iot-lab04
+curl http://localhost:8000/health
 ```
 
----
+## Secrets
 
-## 5. Không đưa secret vào image
+Do not put real secrets in source code or the Dockerfile. This lab uses `AUTH_TOKEN=local-dev-token` only as a local placeholder in `.env.example`.
 
-Không viết trực tiếp token vào code hoặc Dockerfile.
-
-Sai:
-
-```Dockerfile
-ENV TELEGRAM_TOKEN=123456
-```
-
-Đúng:
-
-```Dockerfile
-ENV TELEGRAM_TOKEN=
-```
-
-và truyền khi chạy:
+For a real deployment, pass the token at runtime:
 
 ```bash
-docker run --env-file .env ...
+docker run --env AUTH_TOKEN="<real-token>" ...
 ```

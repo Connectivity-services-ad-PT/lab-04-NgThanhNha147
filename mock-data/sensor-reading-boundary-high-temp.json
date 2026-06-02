@@ -1,9 +1,15 @@
 [
   {
-    "device_id": "ESP32-LAB-A01",
-    "metric": "temperature",
-    "value": 80,
-    "unit": "celsius",
-    "timestamp": "2026-05-13T08:30:00+07:00"
+    "deviceId": "IOT-DEV-003",
+    "zoneId": "ZONE-C1",
+    "measurement": {
+      "sensorType": "AIR_QUALITY",
+      "value": 100000,
+      "unit": "AQI"
+    },
+    "timestamp": "2026-05-19T03:03:00Z",
+    "metadata": {
+      "gatewayId": "GW-C1-01"
+    }
   }
 ]

@@ -1,514 +1,720 @@
 {
-  "info": {
-    "name": "FIT4110 Lab04 IoT Docker Verification",
-    "description": "Postman collection aligned with Lab 03 contract style to verify the Dockerized IoT service in Lab 04.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
-    {
-      "name": "01_Functional",
-      "item": [
-        {
-          "name": "GET health returns 200",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/health",
-              "host": [
-                "{{baseUrl}}"
+    "info":  {
+                 "_postman_id":  "fit4110-lab03-group8-iot-ingestion",
+                 "name":  "FIT4110 Lab04 - IoT Docker Verification from Lab03 Contract",
+                 "description":  "Lab 04 Newman collection adapted from the Lab 03 IoT Ingestion contract tests and executed against the Dockerized service.",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+             },
+    "event":  [
+                  {
+                      "listen":  "prerequest",
+                      "script":  {
+                                     "type":  "text/javascript",
+                                     "exec":  [
+                                                  "const prefix = pm.environment.get(\u0027tracePrefix\u0027) || \u0027fit4110-lab03\u0027;",
+                                                  "pm.variables.set(\u0027traceId\u0027, prefix + \u0027-\u0027 + Date.now());",
+                                                  "pm.request.headers.upsert({ key: \u0027X-Correlation-Id\u0027, value: pm.variables.get(\u0027traceId\u0027) });"
+                                              ]
+                                 }
+                  }
               ],
-              "path": [
-                "health"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Response has status ok', function () { const json = pm.response.json(); pm.expect(json.status).to.eql('ok'); });",
-                  "pm.test('Response has service name and version', function () { const json = pm.response.json(); pm.expect(json).to.have.property('service'); pm.expect(json).to.have.property('version'); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST valid temperature reading returns 201",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/readings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "readings"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"device_id\": \"ESP32-LAB-A01\",\n  \"metric\": \"temperature\",\n  \"value\": 31.5,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-13T08:30:00+07:00\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
-                  "pm.test('Response follows created-reading schema', function () { const json = pm.response.json(); pm.expect(json).to.have.property('reading_id'); pm.expect(json.reading_id).to.match(/^R-[0-9]{8}-[0-9]{4}$/); pm.expect(json).to.have.property('accepted', true); pm.expect(json.metric).to.eql('temperature'); });",
-                  "pm.test('Response device_id matches request', function () { const json = pm.response.json(); pm.expect(json.device_id).to.eql('ESP32-LAB-A01'); });",
-                  "const created = pm.response.json();",
-                  "if (created.reading_id) { pm.environment.set('createdReadingId', created.reading_id); }"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "GET latest readings returns items array",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/readings/latest?device_id=ESP32-LAB-A01&limit=5",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "readings",
-                "latest"
-              ],
-              "query": [
-                {
-                  "key": "device_id",
-                  "value": "ESP32-LAB-A01"
-                },
-                {
-                  "key": "limit",
-                  "value": "5"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Response has items array', function () { const json = pm.response.json(); pm.expect(json).to.have.property('items'); pm.expect(json.items).to.be.an('array'); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "GET reading by saved reading_id returns 200",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/readings/{{createdReadingId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "readings",
-                "{{createdReadingId}}"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Response reading_id matches saved variable', function () { const json = pm.response.json(); const saved = pm.environment.get('createdReadingId'); pm.expect(json.reading_id).to.eql(saved); });"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "02_Auth",
-      "item": [
-        {
-          "name": "POST reading without token returns 401",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/readings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "readings"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"device_id\": \"ESP32-LAB-A01\",\n  \"metric\": \"temperature\",\n  \"value\": 31.5,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-13T08:30:00+07:00\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.environment.get('env') === 'mock') {",
-                  "  pm.test('Mock may not enforce auth - document this behavior', function () { pm.expect([200, 201, 401, 403]).to.include(pm.response.code); });",
-                  "} else {",
-                  "  pm.test('Missing token returns 401', function () { pm.response.to.have.status(401); });",
-                  "  function assertProblemDetails() {",
-                  "    const json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('type');",
-                  "    pm.expect(json).to.have.property('title');",
-                  "    pm.expect(json).to.have.property('status');",
-                  "    pm.expect(json.status).to.be.within(400, 599);",
-                  "    pm.expect(json).to.have.property('detail');",
-                  "  }",
-                  "  assertProblemDetails();",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST reading with wrong token returns 401",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer wrong-token"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/readings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "readings"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"device_id\": \"ESP32-LAB-A01\",\n  \"metric\": \"temperature\",\n  \"value\": 31.5,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-13T08:30:00+07:00\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.environment.get('env') === 'mock') {",
-                  "  pm.test('Mock may not enforce auth - document this behavior', function () { pm.expect([200, 201, 401, 403]).to.include(pm.response.code); });",
-                  "} else {",
-                  "  pm.test('Wrong token returns 401', function () { pm.response.to.have.status(401); });",
-                  "  function assertProblemDetails() {",
-                  "    const json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('type');",
-                  "    pm.expect(json).to.have.property('title');",
-                  "    pm.expect(json).to.have.property('status');",
-                  "    pm.expect(json.status).to.be.within(400, 599);",
-                  "    pm.expect(json).to.have.property('detail');",
-                  "  }",
-                  "  assertProblemDetails();",
-                  "}"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "03_Negative",
-      "item": [
-        {
-          "name": "POST reading missing device_id returns validation error",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/readings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "readings"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"metric\": \"temperature\",\n  \"value\": 31.5,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-13T08:30:00+07:00\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.environment.get('env') === 'mock') {",
-                  "  pm.test('Mock response is documented', function () { pm.expect([201, 400, 422]).to.include(pm.response.code); });",
-                  "} else {",
-                  "  pm.test('Missing required field returns 422', function () { pm.response.to.have.status(422); });",
-                  "  function assertProblemDetails() {",
-                  "    const json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('type');",
-                  "    pm.expect(json).to.have.property('title');",
-                  "    pm.expect(json).to.have.property('status');",
-                  "    pm.expect(json.status).to.be.within(400, 599);",
-                  "    pm.expect(json).to.have.property('detail');",
-                  "  }",
-                  "  assertProblemDetails();",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST reading with value as string returns validation error",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/readings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "readings"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"device_id\": \"ESP32-LAB-A01\",\n  \"metric\": \"temperature\",\n  \"value\": \"hot\",\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-13T08:30:00+07:00\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.environment.get('env') === 'mock') {",
-                  "  pm.test('Mock response is documented', function () { pm.expect([201, 400, 422]).to.include(pm.response.code); });",
-                  "} else {",
-                  "  pm.test('Wrong data type returns 422', function () { pm.response.to.have.status(422); });",
-                  "  function assertProblemDetails() {",
-                  "    const json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('type');",
-                  "    pm.expect(json).to.have.property('title');",
-                  "    pm.expect(json).to.have.property('status');",
-                  "    pm.expect(json.status).to.be.within(400, 599);",
-                  "    pm.expect(json).to.have.property('detail');",
-                  "  }",
-                  "  assertProblemDetails();",
-                  "}"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "04_Boundary_Reliability",
-      "item": [
-        {
-          "name": "POST boundary temperature 80 is accepted with warning",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/readings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "readings"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"device_id\": \"ESP32-LAB-A01\",\n  \"metric\": \"temperature\",\n  \"value\": 80,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-13T08:30:00+07:00\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Boundary value 80 returns 201', function () { pm.response.to.have.status(201); });",
-                  "if (pm.environment.get('env') !== 'mock') {",
-                  "  pm.test('High temperature response includes warning header', function () { pm.expect(pm.response.headers.has('X-Warning')).to.eql(true); });",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "POST boundary temperature 81 is rejected",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/readings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "readings"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"device_id\": \"ESP32-LAB-A01\",\n  \"metric\": \"temperature\",\n  \"value\": 81,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-13T08:30:00+07:00\"\n}"
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.environment.get('env') === 'mock') {",
-                  "  pm.test('Mock response is documented', function () { pm.expect([201, 400, 422]).to.include(pm.response.code); });",
-                  "} else {",
-                  "  pm.test('Boundary value 81 returns 422', function () { pm.response.to.have.status(422); });",
-                  "  function assertProblemDetails() {",
-                  "    const json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('type');",
-                  "    pm.expect(json).to.have.property('title');",
-                  "    pm.expect(json).to.have.property('status');",
-                  "    pm.expect(json.status).to.be.within(400, 599);",
-                  "    pm.expect(json).to.have.property('detail');",
-                  "  }",
-                  "  assertProblemDetails();",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "GET health responds under 1000ms on local/container",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/health",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "health"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.environment.get('env') !== 'mock') {",
-                  "  pm.test('Response time is below 1000ms', function () { pm.expect(pm.response.responseTime).to.be.below(1000); });",
-                  "}",
-                  "pm.test('Health endpoint is reachable', function () { pm.response.to.have.status(200); });"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    }
-  ]
+    "item":  [
+                 {
+                     "name":  "00_Health",
+                     "item":  [
+                                  {
+                                      "name":  "GET /health - service is alive",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/health",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "health"
+                                                                           ]
+                                                              }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Status code is 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "pm.test(\u0027Response identifies IoT Ingestion\u0027, function () {",
+                                                                                    "  const json = pm.response.json();",
+                                                                                    "  pm.expect(json).to.have.property(\u0027status\u0027, \u0027ok\u0027);",
+                                                                                    "  pm.expect(json).to.have.property(\u0027service\u0027, \u0027iot-ingestion\u0027);",
+                                                                                    "});"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "01_Functional",
+                     "item":  [
+                                  {
+                                      "name":  "POST /events/sensor - accepts temperature event",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{authToken}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "iot-dev-001-20260519-0001"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/events/sensor",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "events",
+                                                                               "sensor"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"deviceId\": \"IOT-DEV-001\",\n  \"zoneId\": \"ZONE-A1\",\n  \"measurement\": {\n    \"sensorType\": \"TEMPERATURE\",\n    \"value\": 31.5,\n    \"unit\": \"CELSIUS\"\n  },\n  \"timestamp\": \"2026-05-19T02:59:58Z\",\n  \"metadata\": {}\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Status code is 202\u0027, function () { pm.response.to.have.status(202); });",
+                                                                                    "pm.test(\u0027Response has accepted event metadata\u0027, function () {",
+                                                                                    "  const json = pm.response.json();",
+                                                                                    "  pm.expect(json).to.have.property(\u0027eventId\u0027);",
+                                                                                    "  pm.expect(json).to.have.property(\u0027status\u0027, \u0027ACCEPTED\u0027);",
+                                                                                    "  pm.expect(json).to.have.property(\u0027acceptedAt\u0027);",
+                                                                                    "  pm.expect(json.publishedEvents).to.include(\u0027sensor.reading.created\u0027);",
+                                                                                    "  pm.expect(json.publishedEvents).to.include(\u0027telemetry.ingested\u0027);",
+                                                                                    "});"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "POST /telemetry - accepts motion telemetry",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{authToken}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "iot-dev-002-20260519-0001"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/telemetry",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "telemetry"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"deviceId\": \"IOT-DEV-002\",\n  \"zoneId\": \"ZONE-A0\",\n  \"measurement\": {\n    \"sensorType\": \"MOTION\",\n    \"detected\": true,\n    \"unit\": \"BOOLEAN\"\n  },\n  \"timestamp\": \"2026-05-19T03:00:10Z\",\n  \"metadata\": {\n    \"firmwareVersion\": \"1.4.2\"\n  }\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Status code is 202\u0027, function () { pm.response.to.have.status(202); });",
+                                                                                    "pm.test(\u0027Response has async publication list\u0027, function () {",
+                                                                                    "  const json = pm.response.json();",
+                                                                                    "  pm.expect(json).to.have.property(\u0027status\u0027, \u0027ACCEPTED\u0027);",
+                                                                                    "  pm.expect(json.publishedEvents).to.be.an(\u0027array\u0027);",
+                                                                                    "  pm.expect(json.publishedEvents.length).to.be.greaterThan(0);",
+                                                                                    "});"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "GET /telemetry/{eventId} - returns audit detail",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{authToken}}"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/telemetry/0196fb3d-4ad7-7d1e-9f49-5d5148d2b101",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "telemetry",
+                                                                               "0196fb3d-4ad7-7d1e-9f49-5d5148d2b101"
+                                                                           ]
+                                                              }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Status code is 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "pm.test(\u0027Audit response has normalized measurement\u0027, function () {",
+                                                                                    "  const json = pm.response.json();",
+                                                                                    "  pm.expect(json).to.have.property(\u0027eventId\u0027);",
+                                                                                    "  pm.expect(json).to.have.property(\u0027deviceId\u0027);",
+                                                                                    "  pm.expect(json).to.have.property(\u0027measurement\u0027);",
+                                                                                    "  pm.expect(json.measurement).to.have.property(\u0027sensorType\u0027);",
+                                                                                    "});"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "GET /devices/{deviceId} - returns device status",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{authToken}}"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/devices/IOT-DEV-001",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "devices",
+                                                                               "IOT-DEV-001"
+                                                                           ]
+                                                              }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Status code is 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "pm.test(\u0027Device response has status fields\u0027, function () {",
+                                                                                    "  const json = pm.response.json();",
+                                                                                    "  pm.expect(json).to.have.property(\u0027deviceId\u0027);",
+                                                                                    "  pm.expect(json).to.have.property(\u0027status\u0027);",
+                                                                                    "  pm.expect([\u0027ONLINE\u0027, \u0027OFFLINE\u0027, \u0027ERROR\u0027, \u0027MAINTENANCE\u0027]).to.include(json.status);",
+                                                                                    "});"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "02_Auth",
+                     "item":  [
+                                  {
+                                      "name":  "POST /events/sensor - missing token is rejected on real service",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "iot-auth-missing-0001"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/events/sensor",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "events",
+                                                                               "sensor"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"deviceId\": \"IOT-DEV-001\",\n  \"zoneId\": \"ZONE-A1\",\n  \"measurement\": {\n    \"sensorType\": \"TEMPERATURE\",\n    \"value\": 31.5,\n    \"unit\": \"CELSIUS\"\n  },\n  \"timestamp\": \"2026-05-19T02:59:58Z\",\n  \"metadata\": {}\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "const env = pm.environment.get(\u0027env\u0027) || \u0027mock\u0027;",
+                                                                                    "if (env === \u0027mock\u0027) {",
+                                                                                    "  pm.test(\u0027Skipped on mock: Prism does not enforce real auth\u0027, function () { pm.expect(true).to.eql(true); });",
+                                                                                    "} else {",
+                                                                                    "  pm.test(\u0027Missing token returns 401 or 403\u0027, function () { pm.expect([401, 403]).to.include(pm.response.code); });",
+                                                                                    "}"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "POST /events/sensor - invalid token is rejected on real service",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer invalid-token"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "iot-auth-invalid-0001"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/events/sensor",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "events",
+                                                                               "sensor"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"deviceId\": \"IOT-DEV-001\",\n  \"zoneId\": \"ZONE-A1\",\n  \"measurement\": {\n    \"sensorType\": \"TEMPERATURE\",\n    \"value\": 31.5,\n    \"unit\": \"CELSIUS\"\n  },\n  \"timestamp\": \"2026-05-19T02:59:58Z\",\n  \"metadata\": {}\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "const env = pm.environment.get(\u0027env\u0027) || \u0027mock\u0027;",
+                                                                                    "if (env === \u0027mock\u0027) {",
+                                                                                    "  pm.test(\u0027Skipped on mock: invalid token requires real auth middleware\u0027, function () { pm.expect(true).to.eql(true); });",
+                                                                                    "} else {",
+                                                                                    "  pm.test(\u0027Invalid token returns 401 or 403\u0027, function () { pm.expect([401, 403]).to.include(pm.response.code); });",
+                                                                                    "}"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "03_Negative",
+                     "item":  [
+                                  {
+                                      "name":  "POST /events/sensor - missing deviceId returns validation error",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{authToken}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "iot-negative-missing-device"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/events/sensor",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "events",
+                                                                               "sensor"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"zoneId\": \"ZONE-A1\",\n  \"measurement\": {\n    \"sensorType\": \"TEMPERATURE\",\n    \"value\": 31.5,\n    \"unit\": \"CELSIUS\"\n  },\n  \"timestamp\": \"2026-05-19T02:59:58Z\",\n  \"metadata\": {}\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Invalid payload returns client error\u0027, function () { pm.expect([400, 422]).to.include(pm.response.code); });",
+                                                                                    "pm.test(\u0027Error response follows Problem Details shape\u0027, function () {",
+                                                                                    "  const json = pm.response.json();",
+                                                                                    "  pm.expect(json).to.have.property(\u0027title\u0027);",
+                                                                                    "  pm.expect(json).to.have.property(\u0027status\u0027);",
+                                                                                    "  pm.expect(json.status).to.be.within(400, 599);",
+                                                                                    "});"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "POST /events/sensor - wrong sensorType enum returns validation error",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{authToken}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "iot-negative-enum-0001"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/events/sensor",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "events",
+                                                                               "sensor"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"deviceId\": \"IOT-DEV-001\",\n  \"zoneId\": \"ZONE-A1\",\n  \"measurement\": {\n    \"sensorType\": \"TEMPERATURE_HOT\",\n    \"value\": 31.5,\n    \"unit\": \"CELSIUS\"\n  },\n  \"timestamp\": \"2026-05-19T02:59:58Z\",\n  \"metadata\": {}\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Wrong enum returns client error\u0027, function () { pm.expect([400, 422]).to.include(pm.response.code); });",
+                                                                                    "pm.test(\u0027Error response has detail or validation status\u0027, function () {",
+                                                                                    "  const json = pm.response.json();",
+                                                                                    "  pm.expect(json).to.have.property(\u0027status\u0027);",
+                                                                                    "});"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "04_Boundary_Reliability",
+                     "item":  [
+                                  {
+                                      "name":  "POST /events/sensor - boundary AQI value is accepted",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{authToken}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "iot-boundary-aqi-0001"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/events/sensor",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "events",
+                                                                               "sensor"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"deviceId\": \"IOT-DEV-003\",\n  \"zoneId\": \"ZONE-C1\",\n  \"measurement\": {\n    \"sensorType\": \"AIR_QUALITY\",\n    \"value\": 100000,\n    \"unit\": \"AQI\"\n  },\n  \"timestamp\": \"2026-05-19T03:03:00Z\",\n  \"metadata\": {\n    \"gatewayId\": \"GW-C1-01\"\n  }\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Boundary max value returns accepted\u0027, function () { pm.response.to.have.status(202); });",
+                                                                                    "pm.test(\u0027Boundary response still queues async events\u0027, function () {",
+                                                                                    "  const json = pm.response.json();",
+                                                                                    "  pm.expect(json).to.have.property(\u0027status\u0027, \u0027ACCEPTED\u0027);",
+                                                                                    "  pm.expect(json.publishedEvents).to.include(\u0027telemetry.ingested\u0027);",
+                                                                                    "});"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "POST /events/sensor - value above max is rejected",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{authToken}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "iot-boundary-aqi-0002"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/events/sensor",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "events",
+                                                                               "sensor"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"deviceId\": \"IOT-DEV-003\",\n  \"zoneId\": \"ZONE-C1\",\n  \"measurement\": {\n    \"sensorType\": \"AIR_QUALITY\",\n    \"value\": 100001,\n    \"unit\": \"AQI\"\n  },\n  \"timestamp\": \"2026-05-19T03:03:00Z\",\n  \"metadata\": {\n    \"gatewayId\": \"GW-C1-01\"\n  }\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Out-of-range value returns client error\u0027, function () { pm.expect([400, 422]).to.include(pm.response.code); });",
+                                                                                    "pm.test(\u0027Boundary test checks response body\u0027, function () {",
+                                                                                    "  const json = pm.response.json();",
+                                                                                    "  pm.expect(json).to.have.property(\u0027status\u0027);",
+                                                                                    "  pm.expect(json.status).to.be.within(400, 599);",
+                                                                                    "});"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "05_Consumer_side_Smoke",
+                     "item":  [
+                                  {
+                                      "name":  "Consumer smoke - Core Business receives sensor event shape",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{authToken}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "iot-core-smoke-0001"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/events/sensor",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "events",
+                                                                               "sensor"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"deviceId\": \"IOT-DEV-001\",\n  \"zoneId\": \"ZONE-A1\",\n  \"measurement\": {\n    \"sensorType\": \"TEMPERATURE\",\n    \"value\": 31.5,\n    \"unit\": \"CELSIUS\"\n  },\n  \"timestamp\": \"2026-05-19T02:59:58Z\",\n  \"metadata\": {}\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Provider mock accepts contract used by Core Business consumer\u0027, function () { pm.response.to.have.status(202); });",
+                                                                                    "pm.test(\u0027Consumer can read event id and published event names\u0027, function () {",
+                                                                                    "  const json = pm.response.json();",
+                                                                                    "  pm.expect(json).to.have.property(\u0027eventId\u0027);",
+                                                                                    "  pm.expect(json.publishedEvents).to.include(\u0027sensor.reading.created\u0027);",
+                                                                                    "});"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "06_Local_only_NonFunctional",
+                     "item":  [
+                                  {
+                                      "name":  "POST /events/sensor - local response time threshold",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{authToken}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "iot-local-latency-0001"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/events/sensor",
+                                                                  "host":  [
+                                                                               "{{baseUrl}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "events",
+                                                                               "sensor"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"deviceId\": \"IOT-DEV-004\",\n  \"zoneId\": \"ZONE-D1\",\n  \"measurement\": {\n    \"sensorType\": \"HUMIDITY\",\n    \"value\": 55.2,\n    \"unit\": \"PERCENT\"\n  },\n  \"timestamp\": \"2026-05-19T03:04:00Z\",\n  \"metadata\": {}\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "const env = pm.environment.get(\u0027env\u0027) || \u0027mock\u0027;",
+                                                                                    "if (env === \u0027local\u0027) {",
+                                                                                    "  pm.test(\u0027Local service responds under 1000ms\u0027, function () { pm.expect(pm.response.responseTime).to.be.below(1000); });",
+                                                                                    "} else {",
+                                                                                    "  pm.test(\u0027Skipped on mock: mock latency is not evidence of real service reliability\u0027, function () { pm.expect(true).to.eql(true); });",
+                                                                                    "}"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 }
+             ]
 }

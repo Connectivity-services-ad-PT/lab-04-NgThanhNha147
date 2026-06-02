@@ -2,36 +2,38 @@
 
 ## Dockerfile
 
-- [ ] Có base image hợp lý.
-- [ ] Có `WORKDIR`.
-- [ ] Có copy dependency trước source để tận dụng cache.
-- [ ] Có `EXPOSE`.
-- [ ] Có `CMD` hoặc `ENTRYPOINT`.
-- [ ] Có `HEALTHCHECK`.
-- [ ] Có user non-root.
-- [ ] Không chứa secret thật.
+- [x] Base image is reasonable: `python:3.11-slim`.
+- [x] Uses `WORKDIR /app`.
+- [x] Copies dependency file before source to use Docker cache.
+- [x] Uses `EXPOSE 8000`.
+- [x] Uses `CMD` to run Uvicorn.
+- [x] Has `HEALTHCHECK` calling `GET /health`.
+- [x] Runs as non-root user `appuser`.
+- [x] Does not bake a real secret into the image; `AUTH_TOKEN` comes from `.env.example` or runtime env.
 
 ## Runtime
 
-- [ ] Container chạy được.
-- [ ] Port map đúng.
-- [ ] `/health` trả `200`.
-- [ ] Log khởi động rõ ràng.
-- [ ] Cấu hình qua ENV.
+- [x] Image builds: `fit4110/iot-ingestion:lab04`.
+- [x] Container runs as `fit4110-iot-lab04`.
+- [x] Port mapping works: `8000:8000`.
+- [x] `/health` returns `200`.
+- [x] Container health status is `healthy`.
+- [x] Runtime config is passed through environment variables.
 
 ## Testing
 
-- [ ] Chạy lại Postman Collection từ Lab 03.
-- [ ] Newman report sinh ra trong `reports/`.
-- [ ] Functional test pass.
-- [ ] Auth test pass trên local/container.
-- [ ] Negative test pass trên local/container.
-- [ ] Boundary test pass hoặc có giải thích hợp đồng.
+- [x] Reuses the Lab 03 IoT Ingestion contract flow.
+- [x] Newman report is generated in `reports/`.
+- [x] Functional tests pass.
+- [x] Auth tests pass on the real container.
+- [x] Negative tests pass on the real container.
+- [x] Boundary tests pass.
+- [x] Error responses follow Problem Details shape.
 
 ## Evidence
 
-- [ ] Có ảnh/log `docker build`.
-- [ ] Có ảnh/log `docker run`.
-- [ ] Có ảnh/log `curl /health`.
-- [ ] Có Newman HTML/XML report.
-- [ ] Có tag image đúng quy ước.
+- [x] Docker build completed.
+- [x] Docker run completed.
+- [x] `curl /health` returned `status: ok`.
+- [x] Newman HTML/XML reports generated.
+- [x] Image tag created: `fit4110/iot-ingestion:v0.1.0-team-iot`.

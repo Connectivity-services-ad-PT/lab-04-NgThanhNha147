@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7
-
 FROM python:3.11-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -22,7 +20,6 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/venv/bin:$PATH"
 ENV APP_HOST=0.0.0.0
 ENV APP_PORT=8000
-ENV AUTH_TOKEN=local-dev-token
 
 WORKDIR /app
 

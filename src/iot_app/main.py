@@ -1,89 +1,150 @@
 import os
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional
+from http import HTTPStatus
+from typing import Annotated, Dict, List, Literal, Optional, Union
+from uuid import uuid4
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, ConfigDict, Field
 
 SERVICE_NAME = os.getenv("SERVICE_NAME", "iot-ingestion")
 SERVICE_VERSION = os.getenv("SERVICE_VERSION", "0.4.0")
 AUTH_TOKEN = os.getenv("AUTH_TOKEN", "local-dev-token")
 
+STATIC_EVENT_ID = "0196fb3d-4ad7-7d1e-9f49-5d5148d2b101"
 
 app = FastAPI(
     title="FIT4110 Lab 04 - IoT Ingestion Service",
     version=SERVICE_VERSION,
-    description=(
-        "Dockerized IoT Ingestion API aligned with the Lab 03 OpenAPI/Postman contract."
-    ),
+    description="Dockerized IoT Ingestion API that runs the Lab 03 contract on a real container.",
 )
 
 
-class SensorMetric(str, Enum):
-    temperature = "temperature"
-    humidity = "humidity"
-    motion = "motion"
-    smoke = "smoke"
-
-
-class SensorUnit(str, Enum):
-    celsius = "celsius"
-    percent = "percent"
-    boolean = "boolean"
-    ppm = "ppm"
-
-
 class ProblemDetails(BaseModel):
-    type: str = "about:blank"
+    model_config = ConfigDict(extra="forbid")
+
+    type: str
     title: str
     status: int = Field(..., ge=400, le=599)
-    detail: str
+    detail: Optional[str] = None
     instance: Optional[str] = None
+    errors: List[Dict[str, str]] = Field(default_factory=list)
 
 
 class HealthResponse(BaseModel):
-    status: str
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["ok"]
     service: str
-    version: str
+    time: str
 
 
-class SensorReadingCreate(BaseModel):
-    device_id: str = Field(..., min_length=3, examples=["ESP32-LAB-A01"])
-    metric: SensorMetric = Field(..., examples=["temperature"])
-    value: float = Field(
-        ...,
-        ge=-40,
-        le=80,
-        description="Boundary range used in Lab 03 and Lab 04: -40 to 80.",
-        examples=[31.5],
-    )
-    unit: Optional[SensorUnit] = Field(default=None, examples=["celsius"])
-    timestamp: str = Field(..., examples=["2026-05-13T08:30:00+07:00"])
+class NumericUnit(str, Enum):
+    CELSIUS = "CELSIUS"
+    PERCENT = "PERCENT"
+    WATT = "WATT"
+    AQI = "AQI"
 
 
-class SensorReading(BaseModel):
-    reading_id: str
-    device_id: str
-    metric: SensorMetric
-    value: float
-    unit: Optional[SensorUnit] = None
+class NumericTelemetryMeasurement(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sensorType: Literal["TEMPERATURE", "HUMIDITY", "POWER", "AIR_QUALITY"]
+    value: float = Field(..., ge=-1000, le=100000)
+    unit: NumericUnit
+
+
+class BooleanTelemetryMeasurement(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sensorType: Literal["MOTION"]
+    detected: bool
+    unit: Literal["BOOLEAN"]
+
+
+TelemetryMeasurement = Annotated[
+    Union[NumericTelemetryMeasurement, BooleanTelemetryMeasurement],
+    Field(discriminator="sensorType"),
+]
+
+
+class IngestTelemetryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    deviceId: str = Field(..., pattern=r"^IOT-DEV-[0-9]{3}$")
+    zoneId: str = Field(..., pattern=r"^ZONE-[A-Z][0-9]$")
+    measurement: TelemetryMeasurement
+    timestamp: datetime
+    metadata: Dict[str, str]
+
+
+class TelemetryAccepted(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    eventId: str
+    status: Literal["ACCEPTED"]
+    publishedEvents: List[str]
+    acceptedAt: str
+
+
+class TelemetryAudit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    eventId: str
+    deviceId: str
+    zoneId: str
+    measurement: Dict
     timestamp: str
-    created_at: str
+    acceptedAt: str
+    publishedEvents: List[str]
 
 
-class SensorReadingCreated(BaseModel):
-    reading_id: str
-    device_id: str
-    metric: SensorMetric
-    accepted: bool
-    created_at: str
+class DeviceStatus(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    deviceId: str
+    zoneId: str
+    status: Literal["ONLINE", "OFFLINE", "ERROR", "MAINTENANCE"]
+    lastSeenAt: str
+    batteryLevel: int = Field(..., ge=0, le=100)
+    firmwareVersion: str
 
 
-READINGS: List[Dict] = []
+
+
+EVENTS: Dict[str, Dict] = {
+    STATIC_EVENT_ID: {
+        "eventId": STATIC_EVENT_ID,
+        "deviceId": "IOT-DEV-001",
+        "zoneId": "ZONE-A1",
+        "measurement": {
+            "sensorType": "TEMPERATURE",
+            "value": 31.5,
+            "unit": "CELSIUS",
+        },
+        "timestamp": "2026-05-19T02:59:58Z",
+        "acceptedAt": "2026-05-19T03:00:00Z",
+        "publishedEvents": ["sensor.reading.created", "telemetry.ingested"],
+    }
+}
+
+DEVICES: Dict[str, Dict] = {
+    "IOT-DEV-001": {
+        "deviceId": "IOT-DEV-001",
+        "zoneId": "ZONE-A1",
+        "status": "ONLINE",
+        "lastSeenAt": "2026-05-19T03:00:00Z",
+        "batteryLevel": 88,
+        "firmwareVersion": "1.4.2",
+    }
+}
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def build_problem(
@@ -93,16 +154,23 @@ def build_problem(
     detail: str,
     instance: Optional[str] = None,
     problem_type: str = "about:blank",
+    errors: Optional[List[Dict[str, str]]] = None,
 ) -> Dict:
-    problem = {
+    return {
         "type": problem_type,
         "title": title,
         "status": status_code,
         "detail": detail,
+        "instance": instance,
+        "errors": errors or [],
     }
-    if instance:
-        problem["instance"] = instance
-    return problem
+
+
+def reason_phrase(status_code: int) -> str:
+    try:
+        return HTTPStatus(status_code).phrase
+    except ValueError:
+        return "HTTP Error"
 
 
 @app.exception_handler(HTTPException)
@@ -112,16 +180,17 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     else:
         problem = build_problem(
             status_code=exc.status_code,
-            title=status.HTTP_STATUS_CODES.get(exc.status_code, "HTTP Error"),
+            title=reason_phrase(exc.status_code),
             detail=str(exc.detail),
             instance=str(request.url.path),
         )
 
-    problem.setdefault("status", exc.status_code)
-    problem.setdefault("title", status.HTTP_STATUS_CODES.get(exc.status_code, "HTTP Error"))
     problem.setdefault("type", "about:blank")
+    problem.setdefault("title", reason_phrase(exc.status_code))
+    problem.setdefault("status", exc.status_code)
     problem.setdefault("detail", "Request failed")
     problem.setdefault("instance", str(request.url.path))
+    problem.setdefault("errors", [])
 
     return JSONResponse(
         status_code=exc.status_code,
@@ -135,131 +204,175 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    first_error = exc.errors()[0] if exc.errors() else {}
-    location = ".".join(str(item) for item in first_error.get("loc", []))
-    message = first_error.get("msg", "Request validation error")
-    detail = f"{location}: {message}" if location else message
+    errors = []
+    for err in exc.errors():
+        field = ".".join(str(part) for part in err.get("loc", []) if part != "body")
+        errors.append(
+            {
+                "field": field or "request",
+                "code": err.get("type", "VALIDATION_ERROR"),
+                "message": err.get("msg", "Request validation error"),
+            }
+        )
 
+    detail = errors[0]["message"] if errors else "Payload does not match the OpenAPI schema."
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=build_problem(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            title="Validation error",
+            title="Request is not valid",
             detail=detail,
             instance=str(request.url.path),
-            problem_type="https://smart-campus.local/problems/validation-error",
+            problem_type="https://campus.local/errors/validation",
+            errors=errors,
         ),
         media_type="application/problem+json",
     )
 
 
 def verify_bearer_token(authorization: Optional[str] = Header(default=None)) -> None:
-    if not authorization:
+    if authorization != f"Bearer {AUTH_TOKEN}":
+        detail = "Missing Bearer token." if not authorization else "Invalid Bearer token."
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=build_problem(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                title="Unauthorized",
-                detail="Missing Authorization header",
-                problem_type="https://smart-campus.local/problems/unauthorized",
+                title="Authentication required",
+                detail=detail,
+                instance="",
+                problem_type="https://campus.local/errors/unauthorized",
             ),
         )
 
-    expected = f"Bearer {AUTH_TOKEN}"
-    if authorization != expected:
+
+def require_idempotency_key(idempotency_key: Optional[str] = Header(default=None)) -> str:
+    if not idempotency_key:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=build_problem(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                title="Unauthorized",
-                detail="Invalid bearer token",
-                problem_type="https://smart-campus.local/problems/unauthorized",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                title="Request is not valid",
+                detail="Idempotency-Key header is required.",
+                problem_type="https://campus.local/errors/validation",
             ),
         )
+    return idempotency_key
 
 
-def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+def published_events_for(payload: IngestTelemetryRequest) -> List[str]:
+    published = ["sensor.reading.created", "telemetry.ingested"]
+    if (
+        isinstance(payload.measurement, NumericTelemetryMeasurement)
+        and payload.measurement.sensorType == "AIR_QUALITY"
+        and payload.measurement.value >= 100000
+    ):
+        published.insert(1, "sensor.threshold.exceeded")
+    return published
 
 
-def next_reading_id() -> str:
-    today = datetime.now(timezone.utc).strftime("%Y%m%d")
-    return f"R-{today}-{len(READINGS) + 1:04d}"
+def store_event(payload: IngestTelemetryRequest, accepted_at: str) -> str:
+    event_id = str(uuid4())
+    EVENTS[event_id] = {
+        "eventId": event_id,
+        "deviceId": payload.deviceId,
+        "zoneId": payload.zoneId,
+        "measurement": payload.measurement.model_dump(mode="json"),
+        "timestamp": payload.timestamp.isoformat().replace("+00:00", "Z"),
+        "acceptedAt": accepted_at,
+        "publishedEvents": published_events_for(payload),
+    }
+    DEVICES[payload.deviceId] = {
+        "deviceId": payload.deviceId,
+        "zoneId": payload.zoneId,
+        "status": "ONLINE",
+        "lastSeenAt": accepted_at,
+        "batteryLevel": 100,
+        "firmwareVersion": payload.metadata.get("firmwareVersion", "unknown"),
+    }
+    return event_id
 
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    return HealthResponse(
-        status="ok",
-        service=SERVICE_NAME,
-        version=SERVICE_VERSION,
+    return HealthResponse(status="ok", service=SERVICE_NAME, time=utc_now())
+
+
+@app.post(
+    "/events/sensor",
+    response_model=TelemetryAccepted,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(verify_bearer_token), Depends(require_idempotency_key)],
+    responses={400: {"model": ProblemDetails}, 401: {"model": ProblemDetails}, 422: {"model": ProblemDetails}},
+)
+def ingest_sensor_event(
+    payload: IngestTelemetryRequest,
+    response: Response,
+    x_correlation_id: Optional[str] = Header(default=None),
+) -> TelemetryAccepted:
+    accepted_at = utc_now()
+    event_id = store_event(payload, accepted_at)
+    if x_correlation_id:
+        response.headers["X-Correlation-Id"] = x_correlation_id
+    return TelemetryAccepted(
+        eventId=event_id,
+        status="ACCEPTED",
+        publishedEvents=EVENTS[event_id]["publishedEvents"],
+        acceptedAt=accepted_at,
     )
 
 
 @app.post(
-    "/readings",
-    response_model=SensorReadingCreated,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(verify_bearer_token)],
-    responses={
-        401: {"model": ProblemDetails},
-        422: {"model": ProblemDetails},
-        429: {"model": ProblemDetails},
-    },
+    "/telemetry",
+    response_model=TelemetryAccepted,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(verify_bearer_token), Depends(require_idempotency_key)],
+    responses={400: {"model": ProblemDetails}, 401: {"model": ProblemDetails}, 422: {"model": ProblemDetails}},
 )
-def create_reading(payload: SensorReadingCreate, response: Response) -> SensorReadingCreated:
-    if payload.metric == SensorMetric.temperature and payload.value >= 70:
-        response.headers["X-Warning"] = "high-temperature"
-
-    reading_id = next_reading_id()
-    created_at = now_iso()
-
-    item = {
-        "reading_id": reading_id,
-        "device_id": payload.device_id,
-        "metric": payload.metric.value,
-        "value": payload.value,
-        "unit": payload.unit.value if payload.unit else None,
-        "timestamp": payload.timestamp,
-        "created_at": created_at,
-    }
-    READINGS.append(item)
-
-    return SensorReadingCreated(
-        reading_id=reading_id,
-        device_id=payload.device_id,
-        metric=payload.metric,
-        accepted=True,
-        created_at=created_at,
-    )
+def ingest_telemetry(
+    payload: IngestTelemetryRequest,
+    response: Response,
+    x_correlation_id: Optional[str] = Header(default=None),
+) -> TelemetryAccepted:
+    return ingest_sensor_event(payload, response, x_correlation_id)
 
 
-@app.get("/readings/latest", dependencies=[Depends(verify_bearer_token)])
-def latest_readings(
-    device_id: Optional[str] = Query(default=None),
-    limit: int = Query(default=10, ge=1, le=100),
-) -> Dict[str, List[Dict]]:
-    items = READINGS
-
-    if device_id:
-        items = [item for item in items if item["device_id"] == device_id]
-
-    return {"items": items[-limit:]}
-
-
-@app.get("/readings/{reading_id}", dependencies=[Depends(verify_bearer_token)])
-def get_reading(reading_id: str) -> Dict:
-    for item in READINGS:
-        if item["reading_id"] == reading_id:
-            return item
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=build_problem(
+@app.get(
+    "/telemetry/{eventId}",
+    response_model=TelemetryAudit,
+    dependencies=[Depends(verify_bearer_token)],
+    responses={401: {"model": ProblemDetails}, 404: {"model": ProblemDetails}},
+)
+def get_telemetry_audit(eventId: str) -> Dict:
+    if eventId not in EVENTS:
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            title="Not Found",
-            detail=f"Reading {reading_id} does not exist",
-            instance=f"/readings/{reading_id}",
-            problem_type="https://smart-campus.local/problems/not-found",
-        ),
-    )
+            detail=build_problem(
+                status_code=status.HTTP_404_NOT_FOUND,
+                title="Resource not found",
+                detail="Event id was not found.",
+                instance=f"/telemetry/{eventId}",
+                problem_type="https://campus.local/errors/not-found",
+            ),
+        )
+    return EVENTS[eventId]
+
+
+@app.get(
+    "/devices/{deviceId}",
+    response_model=DeviceStatus,
+    dependencies=[Depends(verify_bearer_token)],
+    responses={401: {"model": ProblemDetails}, 404: {"model": ProblemDetails}},
+)
+def get_device_status(deviceId: str) -> Dict:
+    if deviceId not in DEVICES:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=build_problem(
+                status_code=status.HTTP_404_NOT_FOUND,
+                title="Resource not found",
+                detail="Device id was not found.",
+                instance=f"/devices/{deviceId}",
+                problem_type="https://campus.local/errors/not-found",
+            ),
+        )
+    return DEVICES[deviceId]

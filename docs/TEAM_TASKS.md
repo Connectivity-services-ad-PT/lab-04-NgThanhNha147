@@ -1,34 +1,29 @@
-# TEAM_TASKS.md – Việc cần làm theo nhóm
+# Team Tasks
 
-Mỗi nhóm bắt đầu từ repo mẫu này và thay phần IoT bằng service của mình.
+This repository is completed for the IoT Ingestion team using the Lab 03 contract.
 
----
+## Completed Items
 
-## Việc chung cho mọi nhóm
+- [x] Copy the Lab 03 IoT OpenAPI contract into `contracts/`.
+- [x] Implement `GET /health`.
+- [x] Implement the Lab 03 IoT endpoints used by the Postman collection.
+- [x] Update `Dockerfile`.
+- [x] Add `.dockerignore`.
+- [x] Add `.env.example`.
+- [x] Add `RUN_LOCAL.md`.
+- [x] Build the Docker image.
+- [x] Run the container.
+- [x] Run the Lab 03 Postman/Newman tests against the container.
+- [x] Export Newman reports.
+- [x] Record Docker and health evidence.
+- [x] Create image tag `fit4110/iot-ingestion:v0.1.0-team-iot`.
 
-- [ ] Copy contract từ Lab 03 vào thư mục `contracts/`.
-- [ ] Đảm bảo service có `GET /health`.
-- [ ] Viết hoặc cập nhật `Dockerfile`.
-- [ ] Viết `.dockerignore`.
-- [ ] Viết `.env.example`.
-- [ ] Viết `RUN_LOCAL.md`.
-- [ ] Build image.
-- [ ] Run container.
-- [ ] Chạy Postman Collection từ Lab 03 trên container.
-- [ ] Xuất Newman report.
-- [ ] Chụp bằng chứng `/health` hoặc log container.
-- [ ] Ghi tag image đã push.
+## Implemented Service Scope
 
----
-
-## Gợi ý theo service
-
-| Service | Điểm cần chú ý |
+| Service | Scope |
 |---|---|
-| IoT Ingestion | API nhận telemetry, auth token, `/health`, test boundary nhiệt độ |
-| Camera Stream | Dùng `opencv-python-headless`, chuẩn bị 1 ảnh mẫu, chưa cần RTSP thật |
-| Access Gate | Nếu chưa có DB trong Lab 04, dùng in-memory hoặc DB ngoài; Compose để Buổi 5 |
-| AI Vision | Có thể dùng mock model hoặc YOLOv8n nhỏ; kiểm soát dung lượng image |
-| Analytics | Nhận event JSON giả; TimescaleDB để Buổi 5 |
-| Core Business | Policy evaluation chạy bằng config/env |
-| Notification | Channel mock là đủ; không commit Telegram/email token thật |
+| IoT Ingestion | Telemetry/event ingestion, auth token checks, health endpoint, device status lookup, audit lookup, boundary validation |
+
+## Next Step For Lab 05
+
+Move from one standalone container to Docker Compose with dependent services such as Core Business, Analytics, or a message broker mock.
